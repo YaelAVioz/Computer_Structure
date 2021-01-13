@@ -1,5 +1,3 @@
-//207237421 Yael Avioz
-
 #include <stdio.h>
 #include "ex1.h"
 
