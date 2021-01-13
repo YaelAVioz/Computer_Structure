@@ -91,15 +91,15 @@ pstrijcpy:
       	jmp   	.valid_input	    		# In case the input is valid continue
 
 .error:
-    movq	$.format_error, %rdi    	# Initiazlized the requierd format
+    	movq	$.format_error, %rdi    	# Initiazlized the requierd format
 	movq	$0, %rax                	# Reset rax
 	call	printf                  	# Print
-    movq	%r14, %rax     		    	# Return the pstring without changes
+    	movq	%r14, %rax     		    	# Return the pstring without changes
 	popq	%rbp                    	# Reset rax
       	ret				        # Return the address to pstring
           
 .valid_input:
-    movq 	$0,%rsi			        # Reset rsi
+    	movq 	$0,%rsi			        # Reset rsi
 	movb	%dl, %sil    		    	# Move the first index to register
 	movb	%cl, %r11b    		    	# Move the second index to register
 	movl 	%esi, %eax   		    	# Move the first index to eax
@@ -113,7 +113,7 @@ pstrijcpy:
 	movq	%r9, %rdx		        # Move r9 (first parameter) to rdx
 	movl	%r8d, %eax		        # Save i to register
 	movb	%cl, 1(%rdx,%rax)	    	# Replace between the bytes
-    incq 	%r8             		# i++
+    	incq 	%r8             		# i++
 
 .conditionLoop:
 	movsbl	%r11b, %eax     	    	# Move the first byte of the second index to eax
@@ -216,12 +216,12 @@ pstrijcmp:
      	jle    	.error_cmp			# If its bigger - go to error
       	jmp   	.valid_input_cmp	    	# In case the input is valid continue
 .error_cmp:
-    movq	$.format_error, %rdi		# Initiallized the requierd format
+    	movq	$.format_error, %rdi		# Initiallized the requierd format
 	movq	$0, %rax                	# Reset rax
 	call	printf                  	# Print
-    movq	$-2, %rax     	        	# Return the pstring without change
+    	movq	$-2, %rax     	        	# Return the pstring without change
 	popq	%rbp                    	# Restore rbp
-    ret				                # Return the address to pstring
+    	ret				        # Return the address to pstring
 
 .valid_input_cmp:
     movq 	$0,%rsi			        # Reset rsi
@@ -239,9 +239,9 @@ pstrijcmp:
 	movl	%r8d, %eax		        # Save i to register rax
     movzbl	1(%rdx,%rax), %edx	    	# Update
 	cmpb    %cl, %dl
-    ja	    .greater	
-	jl		.less
-    incq 	%r8             		# i++
+    	ja	.greater	
+	jl	.less
+    	incq 	%r8             		# i++
 	jmp     .conditionLoopCmp
 
 .conditionLoopCmp:
