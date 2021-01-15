@@ -1,235 +1,203 @@
 #include <stdbool.h> 
 
 typedef struct {
-   unsigned char red;
-   unsigned char green;
-   unsigned char blue;
+	unsigned char red;
+	unsigned char green;
+	unsigned char blue;
 } pixel;
 
 typedef struct {
-    int red;
-    int green;
-    int blue;
-    // int num;
+	int red;
+	int green;
+	int blue;
 } pixel_sum;
 
+// I used macros because they are more efficient then functions and i also changed the function calcIndex
+// Compute min and max of two integers, respectively
+#define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define calcIndex(i,j,n) ((i)*(n)+(j))
 
-/* Compute min and max of two integers, respectively */
-int min(int a, int b) { return (a < b ? a : b); }
-int max(int a, int b) { return (a > b ? a : b); }
+//This is doConvolution function and i put inside this function the code of the function that doConvolution was call
+void doConvolution(Image* image, int kernelSize, int kernel[kernelSize][kernelSize], int kernelScale, bool filter) {
+	int dim = m;
+	int size = dim * n * sizeof(pixel);
+	pixel* pixelsImg = malloc(size);
+	pixel* backupOrg = malloc(size);
 
-int calcIndex(int i, int j, int n) {
-	return ((i)*(n)+(j));
-}
-
-/*
- * initialize_pixel_sum - Initializes all fields of sum to 0
- */
-void initialize_pixel_sum(pixel_sum *sum) {
-	sum->red = sum->green = sum->blue = 0;
-	// sum->num = 0;
-	return;
-}
-
-/*
- * assign_sum_to_pixel - Truncates pixel's new value to match the range [0,255]
- */
-static void assign_sum_to_pixel(pixel *current_pixel, pixel_sum sum, int kernelScale) {
-
-	// divide by kernel's weight
-	sum.red = sum.red / kernelScale;
-	sum.green = sum.green / kernelScale;
-	sum.blue = sum.blue / kernelScale;
-
-	// truncate each pixel's color values to match the range [0,255]
-	current_pixel->red = (unsigned char) (min(max(sum.red, 0), 255));
-	current_pixel->green = (unsigned char) (min(max(sum.green, 0), 255));
-	current_pixel->blue = (unsigned char) (min(max(sum.blue, 0), 255));
-	return;
-}
-
-/*
-* sum_pixels_by_weight - Sums pixel values, scaled by given weight
-*/
-static void sum_pixels_by_weight(pixel_sum *sum, pixel p, int weight) {
-	sum->red += ((int) p.red) * weight;
-	sum->green += ((int) p.green) * weight;
-	sum->blue += ((int) p.blue) * weight;
-	// sum->num++;
-	return;
-}
-
-/*
- *  Applies kernel for pixel at (i,j)
- */
-static pixel applyKernel(int dim, int i, int j, pixel *src, int kernelSize, int kernel[kernelSize][kernelSize], int kernelScale, bool filter) {
-
-	int ii, jj;
-	int currRow, currCol;
-	pixel_sum sum;
-	pixel current_pixel;
-	int min_intensity = 766; // arbitrary value that is higher than maximum possible intensity, which is 255*3=765
-	int max_intensity = -1; // arbitrary value that is lower than minimum possible intensity, which is 0
-	int min_row, min_col, max_row, max_col;
-	pixel loop_pixel;
-
-	initialize_pixel_sum(&sum);
-
-	for(ii = max(i-1, 0); ii <= min(i+1, dim-1); ii++) {
-		for(jj = max(j-1, 0); jj <= min(j+1, dim-1); jj++) {
-
-			int kRow, kCol;
-
-			// compute row index in kernel
-			if (ii < i) {
-				kRow = 0;
-			} else if (ii > i) {
-				kRow = 2;
-			} else {
-				kRow = 1;
-			}
-
-			// compute column index in kernel
-			if (jj < j) {
-				kCol = 0;
-			} else if (jj > j) {
-				kCol = 2;
-			} else {
-				kCol = 1;
-			}
-
-			// apply kernel on pixel at [ii,jj]
-			sum_pixels_by_weight(&sum, src[calcIndex(ii, jj, dim)], kernel[kRow][kCol]);
+	// Convert chars to pixels - I moved the function charsToPixels to here
+	int row, col;
+	char* data = image->data;
+	for (row = 0; row < m; row++) {
+		for (col = 0; col < n; col++) {
+			pixelsImg[row * n + col].red = data[3 * row * n + 3 * col];
+			pixelsImg[row * n + col].green = data[3 * row * n + 3 * col + 1];
+			pixelsImg[row * n + col].blue = data[3 * row * n + 3 * col + 2];
 		}
 	}
 
-	if (filter) {
-		// find min and max coordinates
-		for(ii = max(i-1, 0); ii <= min(i+1, dim-1); ii++) {
-			for(jj = max(j-1, 0); jj <= min(j+1, dim-1); jj++) {
-				// check if smaller than min or higher than max and update
-				loop_pixel = src[calcIndex(ii, jj, dim)];
-				if ((((int) loop_pixel.red) + ((int) loop_pixel.green) + ((int) loop_pixel.blue)) <= min_intensity) {
-					min_intensity = (((int) loop_pixel.red) + ((int) loop_pixel.green) + ((int) loop_pixel.blue));
-					min_row = ii;
-					min_col = jj;
+	// I swich the function copy to memcpy function
+	memcpy(backupOrg, pixelsImg, size);
+
+
+	//This part is the functiom smooth that i moved here
+	int i, j, cur_case;
+	if (kernel[0][0] == 1)
+	{
+		cur_case = 1;
+	}
+	else {
+		cur_case = 2;
+	}
+
+	// insatd of calculate the size of half kernelSize i set new variable that coantain the value of half kernel size
+	int half_kernelSize = kernelSize / 2;
+	for (i = half_kernelSize; i < dim - half_kernelSize; i++) {
+		for (j = half_kernelSize; j < dim - half_kernelSize; j++) {
+			//int ii, jj;
+			int currRow, currCol;
+			pixel_sum sum;
+			pixel current_pixel;
+			int min_intensity = 766; // arbitrary value that is higher than maximum possible intensity, which is 255*3=765
+			int max_intensity = -1; // arbitrary value that is lower than minimum possible intensity, which is 0
+			int min_row, min_col, max_row, max_col;
+			pixel loop_pixel;
+
+			//initialize_pixel_sum - Initializes all fields of sum to zero, instad of function i put this here
+			sum.red = 0;
+			sum.green = 0;
+			sum.blue = 0;
+
+			//Instead of using a double loop, reading all of the pixels at once and summing them up according to the pixel  
+			// calculate the index of the top left corner of the current part of the image
+			int index = calcIndex(i - 1, j - 1, dim);
+			pixel pixel1 = backupOrg[index];
+			pixel pixel2 = backupOrg[index + 1];
+			pixel pixel3 = backupOrg[index + 2];
+			index += dim;
+			pixel pixel4 = backupOrg[index];
+			pixel pixel5 = backupOrg[index + 1];
+			pixel pixel6 = backupOrg[index + 2];
+			index += dim;
+			pixel pixel7 = backupOrg[index];
+			pixel pixel8 = backupOrg[index + 1];
+			pixel pixel9 = backupOrg[index + 2];
+
+			int non_center_sum_r = (int)pixel1.red + (int)pixel2.red + (int)pixel3.red + (int)pixel4.red + (int)pixel6.red + (int)pixel7.red + (int)pixel8.red + (int)pixel9.red;
+			int non_center_sum_g = (int)pixel1.green + (int)pixel2.green + (int)pixel3.green + (int)pixel4.green + (int)pixel6.green + (int)pixel7.green + (int)pixel8.green + (int)pixel9.green;
+			int non_center_sum_b = (int)pixel1.blue + (int)pixel2.blue + (int)pixel3.blue + (int)pixel4.blue + (int)pixel6.blue + (int)pixel7.blue + (int)pixel8.blue + (int)pixel9.blue;
+			if (cur_case == 1)
+			{
+				sum.red += non_center_sum_r + (int)pixel5.red;
+				sum.green += non_center_sum_g + (int)pixel5.green;
+				sum.blue += non_center_sum_b + (int)pixel5.blue;
+			}
+			else
+			{
+				sum.red -= non_center_sum_r - (9 * (int)pixel5.red);
+				sum.green -= non_center_sum_g - (9 * (int)pixel5.green);
+				sum.blue -= non_center_sum_b - (9 * (int)pixel5.blue);
+			}
+
+			int ii, jj;
+			if (filter) {
+				int loop_pixel_sum;
+				// find min and max coordinates
+				for (ii = max(i - 1, 0); ii <= min(i + 1, dim - 1); ii++) {
+					for (jj = max(j - 1, 0); jj <= min(j + 1, dim - 1); jj++) {
+						// check if smaller than min or higher than max and update
+						loop_pixel = backupOrg[calcIndex(ii, jj, dim)];
+						loop_pixel_sum = (int)loop_pixel.red + (int)loop_pixel.green + (int)loop_pixel.blue;
+						if (loop_pixel_sum <= min_intensity) {
+							min_intensity = loop_pixel_sum;
+							min_row = ii;
+							min_col = jj;
+						}
+						if (loop_pixel_sum > max_intensity) {
+							max_intensity = loop_pixel_sum;
+							max_row = ii;
+							max_col = jj;
+						}
+					}
 				}
-				if ((((int) loop_pixel.red) + ((int) loop_pixel.green) + ((int) loop_pixel.blue)) > max_intensity) {
-					max_intensity = (((int) loop_pixel.red) + ((int) loop_pixel.green) + ((int) loop_pixel.blue));
-					max_row = ii;
-					max_col = jj;
-				}
+
+				// filter out min and max
+				//sum_pixels_by_weight - Sums pixel values, scaled by given weight
+				pixel p = backupOrg[(min_row) * (dim)+min_col];
+				int weight = -1;
+				sum.red += ((int)p.red) * weight;
+				sum.green += ((int)p.green) * weight;
+				sum.blue += ((int)p.blue) * weight;
+				//sum_pixels_by_weight - Sums pixel values, scaled by given weight
+				p = backupOrg[max_row * dim + max_col];
+				sum.red += ((int)p.red) * weight;
+				sum.green += ((int)p.green) * weight;
+				sum.blue += ((int)p.blue) * weight;
 			}
-		}
-		// filter out min and max
-		sum_pixels_by_weight(&sum, src[calcIndex(min_row, min_col, dim)], -1);
-		sum_pixels_by_weight(&sum, src[calcIndex(max_row, max_col, dim)], -1);
-	}
 
-	// assign kernel's result to pixel at [i,j]
-	assign_sum_to_pixel(&current_pixel, sum, kernelScale);
-	return current_pixel;
-}
+			// assign kernel's result to pixel at [i,j]
+			// i moved the func assign_sum_to_pixel to here
+			//in case the kernelScale there is no need to divide 
+			if (kernelScale != 1)
+			{
+				sum.red = sum.red / kernelScale;
+				sum.green = sum.green / kernelScale;
+				sum.blue = sum.blue / kernelScale;
+			}
 
-/*
-* Apply the kernel over each pixel.
-* Ignore pixels where the kernel exceeds bounds. These are pixels with row index smaller than kernelSize/2 and/or
-* column index smaller than kernelSize/2
-*/
-void smooth(int dim, pixel *src, pixel *dst, int kernelSize, int kernel[kernelSize][kernelSize], int kernelScale, bool filter) {
+			// truncate each pixel's color values to match the range [0,255]
+			current_pixel.red = (unsigned char)(min(max(sum.red, 0), 255));
+			current_pixel.green = (unsigned char)(min(max(sum.green, 0), 255));
+			current_pixel.blue = (unsigned char)(min(max(sum.blue, 0), 255));
 
-	int i, j;
-	for (i = kernelSize / 2 ; i < dim - kernelSize / 2; i++) {
-		for (j =  kernelSize / 2 ; j < dim - kernelSize / 2 ; j++) {
-			dst[calcIndex(i, j, dim)] = applyKernel(dim, i, j, src, kernelSize, kernel, kernelScale, filter);
+			pixelsImg[i * dim + j] = current_pixel;
 		}
 	}
-}
 
-void charsToPixels(Image *charsImg, pixel* pixels) {
-
-	int row, col;
-	for (row = 0 ; row < m ; row++) {
-		for (col = 0 ; col < n ; col++) {
-
-			pixels[row*n + col].red = image->data[3*row*n + 3*col];
-			pixels[row*n + col].green = image->data[3*row*n + 3*col + 1];
-			pixels[row*n + col].blue = image->data[3*row*n + 3*col + 2];
+	// Convert from pixels to chars
+	for (row = 0; row < m; row++) {
+		for (col = 0; col < n; col++) {
+			data[3 * row * n + 3 * col] = pixelsImg[row * n + col].red;
+			data[3 * row * n + 3 * col + 1] = pixelsImg[row * n + col].green;
+			data[3 * row * n + 3 * col + 2] = pixelsImg[row * n + col].blue;
 		}
 	}
-}
 
-void pixelsToChars(pixel* pixels, Image *charsImg) {
-
-	int row, col;
-	for (row = 0 ; row < m ; row++) {
-		for (col = 0 ; col < n ; col++) {
-
-			image->data[3*row*n + 3*col] = pixels[row*n + col].red;
-			image->data[3*row*n + 3*col + 1] = pixels[row*n + col].green;
-			image->data[3*row*n + 3*col + 2] = pixels[row*n + col].blue;
-		}
-	}
-}
-
-void copyPixels(pixel* src, pixel* dst) {
-
-	int row, col;
-	for (row = 0 ; row < m ; row++) {
-		for (col = 0 ; col < n ; col++) {
-
-			dst[row*n + col].red = src[row*n + col].red;
-			dst[row*n + col].green = src[row*n + col].green;
-			dst[row*n + col].blue = src[row*n + col].blue;
-		}
-	}
-}
-
-void doConvolution(Image *image, int kernelSize, int kernel[kernelSize][kernelSize], int kernelScale, bool filter) {
-
-	pixel* pixelsImg = malloc(m*n*sizeof(pixel));
-	pixel* backupOrg = malloc(m*n*sizeof(pixel));
-
-	charsToPixels(image, pixelsImg);
-	copyPixels(pixelsImg, backupOrg);
-
-	smooth(m, backupOrg, pixelsImg, kernelSize, kernel, kernelScale, filter);
-
-	pixelsToChars(pixelsImg, image);
-
+	// free the memory
 	free(pixelsImg);
 	free(backupOrg);
 }
 
-void myfunction(Image *image, char* srcImgpName, char* blurRsltImgName, char* sharpRsltImgName, char* filteredBlurRsltImgName, char* filteredSharpRsltImgName, char flag) {
+void myfunction(Image* image, char* srcImgpName, char* blurRsltImgName, char* sharpRsltImgName, char* filteredBlurRsltImgName, char* filteredSharpRsltImgName, char flag) {
 
 	/*
 	* [1, 1, 1]
 	* [1, 1, 1]
 	* [1, 1, 1]
 	*/
-	int blurKernel[3][3] = {{1, 1, 1}, {1, 1, 1}, {1, 1, 1}};
+	int blurKernel[3][3] = { {1, 1, 1}, {1, 1, 1}, {1, 1, 1} };
 
 	/*
 	* [-1, -1, -1]
 	* [-1, 9, -1]
 	* [-1, -1, -1]
 	*/
-	int sharpKernel[3][3] = {{-1,-1,-1},{-1,9,-1},{-1,-1,-1}};
+	int sharpKernel[3][3] = { {-1,-1,-1},{-1,9,-1},{-1,-1,-1} };
 
-	if (flag == '1') {	
+	if (flag == '1') {
 		// blur image
 		doConvolution(image, 3, blurKernel, 9, false);
 
 		// write result image to file
-		writeBMP(image, srcImgpName, blurRsltImgName);	
+		writeBMP(image, srcImgpName, blurRsltImgName);
 
 		// sharpen the resulting image
 		doConvolution(image, 3, sharpKernel, 1, false);
-		
+
 		// write result image to file
-		writeBMP(image, srcImgpName, sharpRsltImgName);	
-	} else {
+		writeBMP(image, srcImgpName, sharpRsltImgName);
+	}
+	else {
 		// apply extermum filtered kernel to blur image
 		doConvolution(image, 3, blurKernel, 7, true);
 
@@ -240,7 +208,6 @@ void myfunction(Image *image, char* srcImgpName, char* blurRsltImgName, char* sh
 		doConvolution(image, 3, sharpKernel, 1, false);
 
 		// write result image to file
-		writeBMP(image, srcImgpName, filteredSharpRsltImgName);	
+		writeBMP(image, srcImgpName, filteredSharpRsltImgName);
 	}
 }
-
